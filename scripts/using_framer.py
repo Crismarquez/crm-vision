@@ -8,8 +8,8 @@ from visionanalytic.data import VisionCRM
 from config.config import DATA_DIR
 
 
-# video_path = DATA_DIR / "sample2.MOV"
-video_path = DATA_DIR / "fix-IMG_0783.mov"
+video_path = DATA_DIR / "sample2.MOV"
+# video_path = DATA_DIR / "fix-IMG_0783.mov"
 source = 0
 recognition = FaceRecognition()
 tracker = Tracker()

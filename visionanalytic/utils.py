@@ -93,44 +93,13 @@ def xyxy_to_xywh(x):
     y[:, 3] = x[:, 3] - x[:, 1]  # height
     return y
 
-def generate_notification(face, df_info):
-    
-    img_notification = np.zeros((210, 640, 3)).astype(np.uint8)
-    img_notification[:, :, :] = (0,191,255)
 
-    width = 100
-    height = 100
+def crop_img(frame, xyxy):
+    xyxy = xyxy.astype(int)
+    for i, value in enumerate(xyxy):
+        if value < 0:
+            xyxy[i] = 0
 
-    cv2.putText(img_notification, df_info["name"][0], (30, 35), cv2.FONT_HERSHEY_SIMPLEX,
-        1, (255, 10, 58), 2)
-    cv2.putText(img_notification, "se encuentra", (25, 175), cv2.FONT_HERSHEY_SIMPLEX,
-            0.8, (255, 10, 58), 2)
-    cv2.putText(img_notification, "en la tienda", (25, 195), cv2.FONT_HERSHEY_SIMPLEX,
-            0.8, (255, 10, 58), 2)
+    croped = frame[xyxy[1]:xyxy[3], xyxy[0]:xyxy[2]]
+    return croped
 
-    cv2.putText(img_notification, "Tipo Cliente: ", (250, 30), cv2.FONT_HERSHEY_SIMPLEX,
-            0.5, (255, 10, 58), 2)
-    cv2.putText(img_notification, df_info["type_client"][0], (380, 30), cv2.FONT_HERSHEY_SIMPLEX,
-            0.8, (58, 10, 255), 2)
-
-    cv2.putText(img_notification, "Recomendar: ", (250, 80), cv2.FONT_HERSHEY_SIMPLEX,
-            0.5, (255, 10, 58), 2)
-    cv2.putText(img_notification, df_info["recomendation"][0], (380, 80), cv2.FONT_HERSHEY_SIMPLEX,
-            0.8, (58, 10, 255), 2)
-
-    cv2.putText(img_notification, "Descuento: ", (250, 130), cv2.FONT_HERSHEY_SIMPLEX,
-            0.5, (255, 10, 58), 2)
-    cv2.putText(img_notification, df_info["descount"][0], (380, 130), cv2.FONT_HERSHEY_SIMPLEX,
-            0.8, (58, 10, 255), 2)
-
-    cv2.putText(img_notification, "Ultima visita: ", (250, 180), cv2.FONT_HERSHEY_SIMPLEX,
-            0.5, (255, 10, 58), 2)
-    cv2.putText(img_notification, df_info["last_visit"][0], (380, 180), cv2.FONT_HERSHEY_SIMPLEX,
-            0.8, (58, 10, 255), 2)
-
-    cv2.line(img_notification, (0, 205), (640, 205), (0, 0, 0), 2) 
-
-    cropped_face = cv2.resize(face, (width, height))
-    img_notification[50:50+height, 50:50+width] = cropped_face
-    
-    return (img_notification, df_info["object_id"][0])

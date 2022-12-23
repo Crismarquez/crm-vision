@@ -12,16 +12,21 @@ from config.config import RESULTS_DIR
 class FaceRecognition:
     def __init__(
         self,
-        providers: List = ['CPUExecutionProvider']
+        providers: List = ['CPUExecutionProvider'],
+        allowed_modules: List = ["detection", "recognition"]
         ) -> None:
         
         self.providers = providers
+        self.allowed_modules = allowed_modules
 
         self.load_model()
 
 
     def load_model(self):
-        self.model = FaceAnalysis(providers=self.providers)
+        self.model = FaceAnalysis(
+            providers=self.providers,
+            allowed_modules = self.allowed_modules
+            )
         self.model.prepare(ctx_id=0, det_size=(640, 640))
 
 
@@ -32,7 +37,7 @@ class FaceRecognition:
             img (np.ndarray): frame to detect faces
 
         Returns:
-            List[Dict]: List with each face detected, and the dict contains: 
+            List[Dict]: List with each face detected, and the dict contains, (depend of modules): 
                 'bbox', 'kps', 'det_score', 'landmark_3d_68', 'pose',
                 'landmark_2d_106', 'gender', 'age', 'embedding'
                 """

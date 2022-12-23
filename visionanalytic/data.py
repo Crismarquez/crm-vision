@@ -1,6 +1,7 @@
 
 from typing import List
 import pickle
+from pathlib import Path
 
 import pandas as pd
 import numpy as np
@@ -9,6 +10,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 
 from config.config import DATA_DIR
+
 
 class VisionCRM:
     def __init__(self, bbdd: str="crm_vision", id_col="object_id", n_embeddings=15) -> None:
@@ -113,73 +115,75 @@ class VisionCRM:
 class NotificationManager:
     def __init__(self):
         self.showing_ids = []
-        self.front_notification = np.ones((840, 640, 3))
-        self.front_notification = (self.front_notification*255).astype(np.uint8)
+
+        self.home_notification = cv2.imread(str(Path(DATA_DIR, "assets", "home.png")))
+        self.waiting_notification = cv2.imread(str(Path(DATA_DIR, "assets", "waiting.png")))
+        self.front_notification = cv2.imread(str(Path(DATA_DIR, "assets", "notification.png")))
+
+        self.notifications_states = {
+            "home": self.home_notification,
+            "wait": self.waiting_notification,
+            "notification": self.front_notification
+        }
         
         self.height_img_notification = 210
         self.width_img_notification = 640
     
     def _generate_notification(self, face, df_info):
-        img_notification = np.zeros(
-            (self.height_img_notification, self.width_img_notification, 3)).astype(np.uint8)
-        img_notification[:, :, :] = (255,191,0)
+        img_notification = self.front_notification.copy()
 
         width = 100
         height = 100
 
-        cv2.putText(img_notification, df_info["name"].values[0], (30, 35), cv2.FONT_HERSHEY_SIMPLEX,
-            1, (255, 10, 58), 2)
-        cv2.putText(img_notification, "se encuentra", (25, 175), cv2.FONT_HERSHEY_SIMPLEX,
-                0.8, (255, 10, 58), 2)
-        cv2.putText(img_notification, "en la tienda", (25, 195), cv2.FONT_HERSHEY_SIMPLEX,
-                0.8, (255, 10, 58), 2)
+        x_titles = 138
+        x_info = 280
 
-        cv2.putText(img_notification, "Tipo Cliente: ", (250, 30), cv2.FONT_HERSHEY_SIMPLEX,
-                0.5, (255, 10, 58), 2)
-        cv2.putText(img_notification, df_info["type_client"].values[0], (360, 30), cv2.FONT_HERSHEY_SIMPLEX,
+        y_init = 470
+        y_delta = 50
+
+        size_titles = 0.6
+
+        color_titles = (255, 255, 255)
+
+        cv2.putText(img_notification, df_info["name"].values[0], (140, 180), cv2.FONT_HERSHEY_SIMPLEX,
+            1, color_titles, 2)
+        cv2.putText(img_notification, "se encuentra", (140, 340), cv2.FONT_HERSHEY_SIMPLEX,
+                0.8, color_titles, 2)
+        cv2.putText(img_notification, "en la tienda", (145, 375), cv2.FONT_HERSHEY_SIMPLEX,
+                0.8, color_titles, 2)
+
+        cv2.putText(img_notification, "Tipo Cliente: ", (x_titles, y_init), cv2.FONT_HERSHEY_SIMPLEX,
+                size_titles, color_titles, 2)
+        cv2.putText(img_notification, df_info["type_client"].values[0], (x_info, y_init), cv2.FONT_HERSHEY_SIMPLEX,
                 0.8, (58, 10, 255), 2)
 
-        cv2.putText(img_notification, "Recomendar: ", (250, 80), cv2.FONT_HERSHEY_SIMPLEX,
-                0.5, (255, 10, 58), 2)
-        cv2.putText(img_notification, df_info["recomendation"].values[0], (360, 80), cv2.FONT_HERSHEY_SIMPLEX,
+        cv2.putText(img_notification, "Recomendar: ", (x_titles, y_init+y_delta), cv2.FONT_HERSHEY_SIMPLEX,
+                size_titles, color_titles, 2)
+        cv2.putText(img_notification, df_info["recomendation"].values[0], (x_info, y_init+y_delta), cv2.FONT_HERSHEY_SIMPLEX,
                 0.8, (58, 10, 255), 2)
 
-        cv2.putText(img_notification, "Descuento: ", (250, 130), cv2.FONT_HERSHEY_SIMPLEX,
-                0.5, (255, 10, 58), 2)
-        cv2.putText(img_notification, df_info["descount"].values[0], (360, 130), cv2.FONT_HERSHEY_SIMPLEX,
+        cv2.putText(img_notification, "Descuento: ", (x_titles, y_init+y_delta*2), cv2.FONT_HERSHEY_SIMPLEX,
+                size_titles, color_titles, 2)
+        cv2.putText(img_notification, df_info["descount"].values[0], (x_info, y_init+y_delta*2), cv2.FONT_HERSHEY_SIMPLEX,
                 0.8, (58, 10, 255), 2)
 
-        cv2.putText(img_notification, "Ultima visita: ", (250, 180), cv2.FONT_HERSHEY_SIMPLEX,
-                0.5, (255, 10, 58), 2)
-        cv2.putText(img_notification, df_info["last_visit"].values[0], (360, 180), cv2.FONT_HERSHEY_SIMPLEX,
+        cv2.putText(img_notification, "Ultima visita: ", (x_titles, y_init+y_delta*3), cv2.FONT_HERSHEY_SIMPLEX,
+                size_titles, color_titles, 2)
+        cv2.putText(img_notification, df_info["last_visit"].values[0], (x_info, y_init+y_delta*3), cv2.FONT_HERSHEY_SIMPLEX,
                 0.8, (58, 10, 255), 2)
-
-        cv2.line(img_notification, (0, 205), (640, 205), (0, 0, 0), 2) 
 
         cropped_face = cv2.resize(face, (width, height))
-        img_notification[50:50+height, 50:50+width] = cropped_face
+        
+        img_notification[200:200+height, 160:160+width] = cropped_face
 
         return img_notification
     
     def generate_notification(self, face, df_info):
         
-        id_object = df_info["object_id"].values[0]
+        img_notification = self._generate_notification(face, df_info)
+
+        self.notifications_states["notification"] = img_notification
         
-        if id_object in self.showing_ids:
-            return self.front_notification
-        
-        img = self._generate_notification(face, df_info)
-        
-        ocupated_spaces = len(self.showing_ids)
-        
-        # insert notification
-        
-        initital_pos = ocupated_spaces * self.height_img_notification
-        print(initital_pos)
-        self.front_notification[initital_pos:initital_pos+self.height_img_notification] = img
-        
-        self.showing_ids.append(id_object)
-        
-        return self.front_notification
+        return img_notification
     
         

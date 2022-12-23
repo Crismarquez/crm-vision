@@ -14,7 +14,7 @@ from config.config import RESULTS_DIR, IMGCROP_DIR, RAWDATA_DIR
 from visionanalytic.recognition import Embedder, FaceRecognition
 from visionanalytic.data import VisionCRM, NotificationManager
 from visionanalytic.capture import StreamCapture
-from visionanalytic.utils import crop_save, xyxy_to_xywh
+from visionanalytic.utils import crop_save, xyxy_to_xywh, crop_img
 from visionanalytic.tracking import TrackableObject, Tracker
 
 
@@ -57,7 +57,7 @@ class Framer:
 
         elif Path(source).is_file():
             self.reader = cv2.VideoCapture(str(source))
-            output_file = str(RESULTS_DIR / f"{Path(source).stem}.avi")
+            output_file = str(RESULTS_DIR / f"{Path(source).stem}.mov")
 
         else:
             raise ValueError("Framer configuration was not able to initialize")
@@ -65,9 +65,9 @@ class Framer:
         if self.write:
             self.writer_params = {
                     "output_file": output_file,
-                    "fourcc": cv2.VideoWriter_fourcc(*"XVID"),
+                    "fourcc": cv2.VideoWriter_fourcc(*'MP4V'),
                     "fps": int(self.reader.get(cv2.CAP_PROP_FPS)),
-                    "frameSize": (self.front_image.shape[:2])
+                    "frameSize": (640*2, 840)
                 }
 
             self.writer = cv2.VideoWriter(
@@ -97,7 +97,7 @@ class Framer:
         raw_data = {}
 
         
-        self.front_notification = self.notification_manager.front_notification.astype(np.uint8)
+        self.front_notification = self.notification_manager.home_notification.astype(np.uint8)
 
         # while self.reader.started:
         while True:
@@ -109,12 +109,12 @@ class Framer:
 
 
             # reshape
-
             frame = cv2.resize(frame, (640, 840))
 
             if frame is None:
                 break
 
+            # skip frames - predict or only tracking
             if total_frames % self.frame_skipping == 0:
 
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -161,16 +161,14 @@ class Framer:
 
                         # crop image, save image and reference
                         bbox = faces[n_object]["bbox"]
-                        img_name = str(objectID) + str(date_time) + ".jpg"
-                        img_path = IMGCROP_DIR / img_name
-                        crop_save(frame, bbox, img_path)
+                        croped_img = crop_img(frame, bbox)
 
                         # # Dibujamos el centroide y el ID de la detección encontrada
                         # text = "ID {}".format(objectID)
                         # cv2.putText(frame, text, (centroid[0]-5, centroid[1]-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
                         # cv2.circle(frame, (centroid[0], centroid[1]), 4, (0,255,0), -1)
 
-                        faces[n_object]["img_crop"] = img_name
+                        faces[n_object]["img_crop"] = croped_img
 
                         if objects_to_save:
                             raw_data[str(date_time)] = objects_to_save
@@ -193,23 +191,30 @@ class Framer:
                                 df_predict["prediction_object_id_"] != "no identified"
                                 ]
 
+                            # TODO update crm ddbb
                             df_clients_not_identified = df_predict[
                                 df_predict["prediction_object_id_"] == "no identified"
                                 ]
 
                             # clients in store
-                            df_costumers_in_store = self.crm_ddbb.df_infoclients[
-                                self.crm_ddbb.df_infoclients["object_id"].isin(
-                                    list(df_clients_identified["prediction_object_id_"])
-                                )
-                            ]
+                            df_costumers_in_store = pd.merge(
+                                df_clients_identified,
+                                self.crm_ddbb.df_infoclients,
+                                how="left",
+                                left_on="prediction_object_id_",
+                                right_on="object_id")
+                            
+                            # self.crm_ddbb.df_infoclients[
+                            #     self.crm_ddbb.df_infoclients["object_id"].isin(
+                            #         list(df_clients_identified["prediction_object_id_"])
+                            #     )
+                            # ]
 
-                            for id_object in df_costumers_in_store["object_id"]:
-                                img_crop_path = self.df_stream[self.df_stream["object_id"]==id_object]["img_crop"].sample(1).values[0]
-                                face_crop = cv2.imread(str(IMGCROP_DIR / img_crop_path))
+                            for stream_id_object, predict_id_object in df_costumers_in_store[["object_id_x", "prediction_object_id_"]].values:
+                                face_crop = self.df_stream[self.df_stream["object_id"]==stream_id_object]["img_crop"].sample(1).values[0]
                                 self.front_notification = self.notification_manager.generate_notification(
                                     face_crop,
-                                    self.crm_ddbb.df_infoclients[self.crm_ddbb.df_infoclients["object_id"]==id_object]
+                                    self.crm_ddbb.df_infoclients[self.crm_ddbb.df_infoclients["object_id"]==predict_id_object]
                                     )
                         
                             # # clean stream
