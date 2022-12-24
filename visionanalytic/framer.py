@@ -272,6 +272,20 @@ class Framer:
         cv2.destroyAllWindows()
 
 
+class Register:
+    """
+    This framer class allows register new user to database
+    """
+    def __init__(self) -> None:
+        pass
+
+    def capture(self) -> None:
+        pass
+
+    def new_register(sel) -> None:
+        pass
+
+
 class FeatureExtractorResearch:
     def __init__(
         self,
