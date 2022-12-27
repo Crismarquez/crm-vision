@@ -11,7 +11,7 @@ import torch
 import pandas as pd
 
 from config.config import RESULTS_DIR, IMGCROP_DIR, RAWDATA_DIR
-from visionanalytic.recognition import Embedder, FaceRecognition
+from visionanalytic.recognition import Embedder, FaceRecognition, SequentialRecognition
 from visionanalytic.data import VisionCRM, NotificationManager
 from visionanalytic.capture import StreamCapture
 from visionanalytic.utils import crop_save, xyxy_to_xywh, crop_img
@@ -274,16 +274,167 @@ class Framer:
 
 class Register:
     """
-    This framer class allows register new user to database
+    This framer class allows to get face id for register a new user
     """
-    def __init__(self) -> None:
-        pass
+    def __init__(
+        self,
+        source: str,
+        recognition: FaceRecognition,
+        sequential_model = SequentialRecognition(),
+        frame_skipping=10,
+        write: bool = True
+        ) -> None:
+        
+        self.frame_skipping = frame_skipping
+        self.recognition = recognition
+        self.sequential_model = sequential_model
 
-    def capture(self) -> None:
-        pass
+        self.writer_params = {}
+        self.write = write
 
-    def new_register(sel) -> None:
-        pass
+        self.df_stream = pd.DataFrame()
+        time_register = time.strftime("%d-%m-%Y-%H-%M-%S", time.localtime())
+
+        self.n_embeddings = 30
+
+        self.notification_manager = NotificationManager()
+        self.front_image = np.zeros((840, 640, 3)).astype(np.uint8)
+        
+
+        if isinstance(source, int):
+            self.reader = StreamCapture(source=source)
+            output_file = str(RESULTS_DIR / f"{'out_' + time_register}.avi")
+
+        elif isinstance(source, str):
+            if source.startswith("http://"):
+                self.reader = StreamCapture(source=source)
+                output_file = str(RESULTS_DIR / f"{'out_' + time_register}.avi")
+
+        elif Path(source).is_file():
+            self.reader = cv2.VideoCapture(str(source))
+            output_file = str(RESULTS_DIR / f"{Path(source).stem}.mov")
+
+        else:
+            raise ValueError("Framer configuration was not able to initialize")
+
+        if self.write:
+            self.writer_params = {
+                    "output_file": output_file,
+                    "fourcc": cv2.VideoWriter_fourcc(*'MP4V'),
+                    "fps": int(self.reader.get(cv2.CAP_PROP_FPS)),
+                    "frameSize": (640, 840)
+                }
+
+            self.writer = cv2.VideoWriter(
+                self.writer_params["output_file"],
+                self.writer_params["fourcc"],
+                self.writer_params["fps"],
+                self.writer_params["frameSize"],
+                True
+            )
+
+
+    def capture(self, user_info: Dict) -> None:
+        
+        if isinstance(self.reader, StreamCapture):
+            self.reader.start()
+
+        W = int(self.reader.get(cv2.CAP_PROP_FRAME_WIDTH))
+        H = int(self.reader.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        pxs_x = 300
+        pxs_y = 400
+
+        x_start = int(W / 2) - int(pxs_x/2)
+        x_end = int(W / 2) + int(pxs_x/2)
+        y_start = int(H / 2) - int(pxs_y/2)
+        y_end = int(H / 2) + int(pxs_y/2)
+
+        xyxy_crop = np.array([x_start, y_start, x_end, y_end])
+
+        total_frames = 0
+
+        start = time.time()
+        fps = FPS().start()
+
+        self.front_notification = self.notification_manager.home_notification.astype(np.uint8)
+        df_predict = None
+
+        # while self.reader.started:
+        while True:
+
+            grabbed, frame = self.reader.read()
+            if not grabbed:
+                break
+
+            # crop
+            frame = crop_img(frame, xyxy_crop)
+
+            if frame is None:
+                break
+
+            # skip frames - predict 
+            if total_frames % self.frame_skipping == 0:
+
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+                faces = self.recognition.predict(frame)
+
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+                # should be only one face
+                if len(faces) == 1:
+
+                    # draw detection
+                    start = (int(faces[0]["bbox"][0]), int(faces[0]["bbox"][1]))
+                    end = (int(faces[0]["bbox"][2]), int(faces[0]["bbox"][3]))
+                    frame = cv2.rectangle(
+                        frame,
+                        start, 
+                        end,
+                        color=(255, 0, 0),
+                        thickness=2
+                        )
+
+                    faces[0]["img_crop"] = crop_img(frame, faces[0]["bbox"])
+                    faces[0]["object_id"] = user_info["id"]
+
+                    self.df_stream = pd.concat(
+                            [self.df_stream, pd.DataFrame.from_records(faces)]
+                            )
+
+                    # TODO filter quality criteria
+
+                    # TODO criteria for complete reading recognition
+                    # select N=15 embedding to compute recognition
+                    if len(self.df_stream) > self.n_embeddings:
+                        df_predict = self.sequential_model.predict(self.df_stream)
+                        break
+                        
+
+            self.front_image[50:50+pxs_y, 50:50+pxs_x] = frame
+
+            cv2.imshow("front-app", self.front_image)
+
+            if self.write:
+                self.writer.write(self.front_image)
+
+            if cv2.waitKey(10) == ord("q"):
+                break
+
+            total_frames += 1
+
+        self.reader.release()
+        if self.write:
+            self.writer.release()
+
+        cv2.destroyAllWindows()
+
+        if df_predict is not None:
+            user_info["embedding"] = df_predict["embedding"].values[0]
+            user_info["meta_data"] = self.df_stream
+
+        return user_info
 
 
 class FeatureExtractorResearch:
@@ -506,11 +657,3 @@ class FeatureExtractorResearch:
         self.reader.release()
 
         cv2.destroyAllWindows()
-
-
-
-            
-
-            
-
-2

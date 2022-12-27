@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 import cv2
 import numpy as np
@@ -13,11 +13,13 @@ class FaceRecognition:
     def __init__(
         self,
         providers: List = ['CPUExecutionProvider'],
-        allowed_modules: List = ["detection", "recognition"]
+        allowed_modules: List = ["detection", "recognition"],
+        det_size: Tuple = (640, 640)
         ) -> None:
         
         self.providers = providers
         self.allowed_modules = allowed_modules
+        self.det_size = det_size
 
         self.load_model()
 
@@ -27,7 +29,7 @@ class FaceRecognition:
             providers=self.providers,
             allowed_modules = self.allowed_modules
             )
-        self.model.prepare(ctx_id=0, det_size=(640, 640))
+        self.model.prepare(ctx_id=0, det_size=self.det_size)
 
 
     def _process(self, img: np.ndarray):
@@ -61,6 +63,22 @@ class FaceRecognition:
         faces_filtered = self._clean_output(faces_filtered)
 
         return faces_filtered
+
+
+class SequentialRecognition:
+    def __init__(self, model="mean") -> None:
+        self.model = model
+    
+    def predict(self, df_input):
+
+        # transform embeddings
+
+        if self.model == "mean":
+            df_predict = df_input.groupby("object_id")["embedding"].mean().reset_index()
+            return df_predict
+
+        else:
+            raise ValueError(f"model instanced ({self.model}) is not allowed")
 
 
 class Embedder:

@@ -8,12 +8,17 @@ import numpy as np
 import cv2
 from sklearn.metrics.pairwise import cosine_similarity
 
-
+from visionanalytic.recognition import SequentialRecognition
 from config.config import DATA_DIR
 
 
 class VisionCRM:
-    def __init__(self, bbdd: str="crm_vision", id_col="object_id", n_embeddings=15) -> None:
+    def __init__(
+        self, 
+        bbdd: str="crm_vision", 
+        id_col="object_id",
+        sequential_model = SequentialRecognition(),
+        n_embeddings=15) -> None:
 
         # Load data (deserialize)
         with open(DATA_DIR / f"{bbdd}_auto.pickle", 'rb') as handle:
@@ -25,6 +30,7 @@ class VisionCRM:
         self.df_infoclients = pd.DataFrame(unserialized_df)
 
         self.consumers = self.df_embedding[id_col]
+        self.sequential_model = sequential_model
         self.n_embeddings = n_embeddings
 
         self.crm_vision_matrix = [embbeding for embbeding  in self.df_embedding["embedding"].values]
@@ -67,7 +73,7 @@ class VisionCRM:
             return df
 
         # transform embeddings
-        df_predict = df.groupby("object_id")["embedding"].mean().reset_index()
+        df_predict = self.sequential_model.predict(df)
 
         matrix_input = [embbeding for embbeding  in df_predict["embedding"].values]
         
