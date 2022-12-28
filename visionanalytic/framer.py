@@ -838,7 +838,7 @@ class FramerCRM:
 
                         if len(df_to_predict)>0:
                             # search in ddbb
-                            df_predict = self.crm_ddbb.predict(df_to_predict, 0.78)
+                            df_predict = self.crm_ddbb.predict(df_to_predict, 0.9)
                             # print(df_predict)
                             df_clients_identified = df_predict[
                                 df_predict["prediction_object_id_"] != "no identified"
@@ -871,6 +871,20 @@ class FramerCRM:
                                     self.crm_ddbb.df_embedding[self.crm_ddbb.df_embedding[self.crm_ddbb.id_col]==predict_id_object],
                                     type_info="basic"
                                     )
+
+                            # show notification for unknow
+                            if len(df_clients_not_identified)>0:
+                                df_clients_not_identified["name"] = "No identificado"
+                                for col in ["age", "id", "phone"]:
+                                    df_clients_not_identified[col] = "No identificado"
+                        
+                                for stream_id_object in df_clients_not_identified["object_id"].values:
+                                    face_crop = self.df_stream[self.df_stream["object_id"]==stream_id_object]["img_crop"].sample(1).values[0]
+                                    self.front_notification = self.notification_manager.generate_notification(
+                                        face_crop,
+                                        df_clients_not_identified[df_clients_not_identified["object_id"]==stream_id_object],
+                                        type_info="basic"
+                                        )
                         
                             # # clean stream
                             self.df_stream = self.df_stream.drop(
