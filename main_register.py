@@ -13,6 +13,9 @@ USERS_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 CRM_DIR = RESULTS_DIR / "crm_vision.npy"
 
+if not CRM_DIR.exists():
+    np.save(CRM_DIR, [], allow_pickle=True)
+
 if __name__ == "__main__":
     print("\n")
     print("*"*30)

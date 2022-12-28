@@ -1,9 +1,9 @@
 import cv2
 
-from visionanalytic.framer import FeatureExtractorResearch, Framer
+from visionanalytic.framer import FeatureExtractorResearch, Framer, FramerCRM
 from visionanalytic.recognition import FaceRecognition
 from visionanalytic.tracking import Tracker
-from visionanalytic.data import VisionCRM
+from visionanalytic.data import VisionCRM, CRMProcesor
 
 from config.config import DATA_DIR
 
@@ -11,19 +11,30 @@ from config.config import DATA_DIR
 video_path = DATA_DIR / "sample2.MOV"
 # video_path = DATA_DIR / "fix-IMG_0783.mov"
 source = 0
-recognition = FaceRecognition()
+recognition = FaceRecognition(det_size=(320, 320))
 tracker = Tracker()
 
-framer = Framer(
-    source = video_path,
+framer = FramerCRM(
+    source = source,
     recognition=recognition,
     tracker=tracker,
-    crm_ddbb=VisionCRM(n_embeddings=15),
+    crm_ddbb=CRMProcesor(id_col="id"),
     frame_skipping=2,
-    write=True
+    write=False
 )
 
 framer.capture()
+
+# framer = Framer(
+#     source = video_path,
+#     recognition=recognition,
+#     tracker=tracker,
+#     crm_ddbb=VisionCRM(n_embeddings=15),
+#     frame_skipping=2,
+#     write=True
+# )
+
+# framer.capture()
 
 # framer = FeatureExtractor(
 #     source = video_path,

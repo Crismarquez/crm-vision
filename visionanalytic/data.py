@@ -9,7 +9,7 @@ import cv2
 from sklearn.metrics.pairwise import cosine_similarity
 
 from visionanalytic.recognition import SequentialRecognition
-from config.config import DATA_DIR
+from config.config import DATA_DIR, RESULTS_DIR
 
 
 class VisionCRM:
@@ -17,8 +17,8 @@ class VisionCRM:
         self, 
         bbdd: str="crm_vision", 
         id_col="object_id",
-        sequential_model = SequentialRecognition(),
-        n_embeddings=15) -> None:
+        sequential_model = SequentialRecognition()
+        ) -> None:
 
         # Load data (deserialize)
         with open(DATA_DIR / f"{bbdd}_auto.pickle", 'rb') as handle:
@@ -31,7 +31,6 @@ class VisionCRM:
 
         self.consumers = self.df_embedding[id_col]
         self.sequential_model = sequential_model
-        self.n_embeddings = n_embeddings
 
         self.crm_vision_matrix = [embbeding for embbeding  in self.df_embedding["embedding"].values]
 
@@ -118,6 +117,86 @@ class VisionCRM:
         return {"id_client": id_client, "similarity": min_distance, "info": info_client_result}
 
 
+class CRMProcesor:
+    def __init__(self, 
+        bbdd: str="crm_vision", 
+        id_col="object_id",
+        sequential_model = SequentialRecognition()
+        ) -> None:
+
+        # Load data (deserialize)
+        self.load_crm()
+
+        with open(DATA_DIR / f"{bbdd}_info_client.pickle", 'rb') as handle:
+            unserialized_df = pickle.load(handle)
+        self.df_infoclients = pd.DataFrame(unserialized_df)
+
+        self.id_col = id_col
+        self.consumers = self.df_embedding[id_col]
+        self.sequential_model = sequential_model
+
+
+        self.info_client = {
+            "type_client": "",
+            "recomendation": "",
+            "last_visit": "",
+            "discount": ""
+        }
+    
+    def load_crm(self) -> None:
+        crm_data = np.load(RESULTS_DIR / "crm_vision.npy", allow_pickle=True)
+        self.df_embedding = pd.DataFrame.from_records(crm_data)
+        self.crm_vision_matrix = [embbeding for embbeding  in self.df_embedding["embedding"].values]
+
+    def calculate_cosine_similarity(self, matrix_input, matrix_crm):
+        return cosine_similarity(
+            matrix_input,
+            matrix_crm
+        )
+
+    def _predict(self, crm_vision_matrix, matrix_input):
+    
+        #calculate distance
+        matrix_similarity = self.calculate_cosine_similarity(
+            matrix_input,
+            crm_vision_matrix
+        )
+        
+        score = matrix_similarity.max(axis=1)
+        arg_max = matrix_similarity.argmax(axis=1)
+        
+        # get object_id
+        predictions = []
+        for max_value in arg_max:
+            predictions.append(self.consumers.values[max_value])
+        
+        return predictions, score
+
+
+    def predict(self, df, distance_treshold=0.8):
+
+        if len(df) == 0:
+            return df
+
+        # transform embeddings
+        df_predict = self.sequential_model.predict(df)
+
+        matrix_input = [embbeding for embbeding  in df_predict["embedding"].values]
+
+        # calculate distance
+        predictions, score = self._predict(self.crm_vision_matrix, matrix_input)
+        
+        df_predict["raw_prediction_object_id"] = predictions
+        df_predict["score"] = score
+
+        # compare with threshold
+        df_predict["prediction_object_id_"] = [
+            raw_prediction if score>distance_treshold else "no identified" for raw_prediction, score in df_predict[["raw_prediction_object_id", "score"]].values
+        ]
+
+        return df_predict
+
+
 class NotificationManager:
     def __init__(self):
         self.showing_ids = []
@@ -125,11 +204,17 @@ class NotificationManager:
         self.home_notification = cv2.imread(str(Path(DATA_DIR, "assets", "home.png")))
         self.waiting_notification = cv2.imread(str(Path(DATA_DIR, "assets", "waiting.png")))
         self.front_notification = cv2.imread(str(Path(DATA_DIR, "assets", "notification.png")))
+        self.front_notification_register = cv2.imread(
+            str(Path(DATA_DIR, "assets", "register.jpg")))
+        self.front_notification_rcreated = cv2.imread(
+            str(Path(DATA_DIR, "assets", "created.jpg")))
 
         self.notifications_states = {
             "home": self.home_notification,
             "wait": self.waiting_notification,
-            "notification": self.front_notification
+            "notification": self.front_notification,
+            "register": self.front_notification_register,
+            "created": self.front_notification_rcreated
         }
         
         self.height_img_notification = 210
@@ -184,12 +269,57 @@ class NotificationManager:
 
         return img_notification
     
-    def generate_notification(self, face, df_info):
+    def _generate_notification_basic(self, face, df_info):
+        img_notification = self.front_notification.copy()
+
+        width = 100
+        height = 100
+
+        x_titles = 138
+        x_info = 280
+
+        y_init = 470
+        y_delta = 50
+
+        size_titles = 0.6
+
+        color_titles = (255, 255, 255)
+
+        cv2.putText(img_notification, "Bienvenido: ", (140, 180), cv2.FONT_HERSHEY_SIMPLEX,
+                0.8, color_titles, 2)
+
+        cv2.putText(img_notification, df_info["name"].values[0], (140, 340), cv2.FONT_HERSHEY_SIMPLEX,
+            1, color_titles, 2)
+
+        cv2.putText(img_notification, "Edad: ", (x_titles, y_init), cv2.FONT_HERSHEY_SIMPLEX,
+                size_titles, color_titles, 2)
+        cv2.putText(img_notification, df_info["age"].values[0], (x_info, y_init), cv2.FONT_HERSHEY_SIMPLEX,
+                0.8, (58, 10, 255), 2)
+
+        cv2.putText(img_notification, "CC: ", (x_titles, y_init+y_delta), cv2.FONT_HERSHEY_SIMPLEX,
+                size_titles, color_titles, 2)
+        cv2.putText(img_notification, df_info["id"].values[0], (x_info, y_init+y_delta), cv2.FONT_HERSHEY_SIMPLEX,
+                0.8, (58, 10, 255), 2)
+
+        cv2.putText(img_notification, "Telefono: ", (x_titles, y_init+y_delta*2), cv2.FONT_HERSHEY_SIMPLEX,
+                size_titles, color_titles, 2)
+        cv2.putText(img_notification, df_info["phone"].values[0], (x_info, y_init+y_delta*2), cv2.FONT_HERSHEY_SIMPLEX,
+                0.8, (58, 10, 255), 2)
+
+        cropped_face = cv2.resize(face, (width, height))
         
-        img_notification = self._generate_notification(face, df_info)
+        img_notification[200:200+height, 160:160+width] = cropped_face
+
+        return img_notification
+
+    def generate_notification(self, face, df_info, type_info = "basic"):
+        
+        if type_info == "basic":
+            img_notification = self._generate_notification_basic(face, df_info)
+
+        else:
+            img_notification = self._generate_notification(face, df_info)
 
         self.notifications_states["notification"] = img_notification
         
         return img_notification
-    
-        
