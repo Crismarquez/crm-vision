@@ -1,30 +1,37 @@
-import cv2
+
+import time
+import pickle
+
+import numpy as np
+
+from visionanalytic.framer import FramerCRM
+from visionanalytic.recognition import FaceRecognition
+from visionanalytic.tracking import Tracker
+from visionanalytic.data import CRMProcesor
+import config.config
 
 
 if __name__ == "__main__":
     print("\n")
     print("*"*30)
-    print("Bienvenido a crm-vision  \n")
+    print("Welcome to CRM-Vision  \n")
     print("*"*30)
     print("\n")
-    print("Configuraciones:  \n")
+    print("Setup:  \n")
 
-    source = input("Habilitar el puerto número: ")
+    source = input("Source camera number: ")
     source = int(source)
 
-    cap = cv2.VideoCapture(source)
+    recognition = FaceRecognition(det_size=(320, 320))
+    tracker = Tracker()
 
-    while True:
+    framer = FramerCRM(
+        source = source,
+        recognition=recognition,
+        tracker=tracker,
+        crm_ddbb=CRMProcesor(id_col="id"),
+        frame_skipping=2,
+        write=False
+    )
 
-        rep, frame = cap.read()
-
-        if not rep:
-            break
-
-        cv2.imshow("crm-vision", frame)
-
-        if cv2.waitKey(10) == ord("q"):
-                    break
-
-    cap.realease()
-    cv2.destroyAllWindows()
+    framer.capture()

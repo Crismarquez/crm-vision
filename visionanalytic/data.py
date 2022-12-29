@@ -9,112 +9,7 @@ import cv2
 from sklearn.metrics.pairwise import cosine_similarity
 
 from visionanalytic.recognition import SequentialRecognition
-from config.config import DATA_DIR, RESULTS_DIR
-
-
-class VisionCRM:
-    def __init__(
-        self, 
-        bbdd: str="crm_vision", 
-        id_col="object_id",
-        sequential_model = SequentialRecognition()
-        ) -> None:
-
-        # Load data (deserialize)
-        with open(DATA_DIR / f"{bbdd}_auto.pickle", 'rb') as handle:
-            unserialized_df = pickle.load(handle)
-        self.df_embedding = pd.DataFrame(unserialized_df)
-
-        with open(DATA_DIR / f"{bbdd}_info_client.pickle", 'rb') as handle:
-            unserialized_df = pickle.load(handle)
-        self.df_infoclients = pd.DataFrame(unserialized_df)
-
-        self.consumers = self.df_embedding[id_col]
-        self.sequential_model = sequential_model
-
-        self.crm_vision_matrix = [embbeding for embbeding  in self.df_embedding["embedding"].values]
-
-        self.info_client = {
-            "type_client": "",
-            "recomendation": "",
-            "last_visit": "",
-            "discount": ""
-        }
-
-    def calculate_cosine_similarity(self, matrix_input, matrix_crm):
-        return cosine_similarity(
-            matrix_input,
-            matrix_crm
-        )
-
-    def _predict(self, crm_vision_matrix, matrix_input):
-    
-        #calculate distance
-        matrix_similarity = self.calculate_cosine_similarity(
-            matrix_input,
-            crm_vision_matrix
-        )
-        
-        score = matrix_similarity.max(axis=1)
-        arg_max = matrix_similarity.argmax(axis=1)
-        
-        # get object_id
-        predictions = []
-        for max_value in arg_max:
-            predictions.append(self.consumers.values[max_value])
-        
-        return predictions, score
-
-
-    def predict(self, df, distance_treshold=0.8):
-
-        if len(df) == 0:
-            return df
-
-        # transform embeddings
-        df_predict = self.sequential_model.predict(df)
-
-        matrix_input = [embbeding for embbeding  in df_predict["embedding"].values]
-        
-        # calculate distance
-        predictions, score = self._predict(self.crm_vision_matrix, matrix_input)
-        
-        df_predict["raw_prediction_object_id"] = predictions
-        df_predict["score"] = score
-
-        # compare with threshold
-        df_predict["prediction_object_id_"] = [
-            raw_prediction if score>distance_treshold else "no identified" for raw_prediction, score in df_predict[["raw_prediction_object_id", "score"]].values
-        ]
-
-        return df_predict
-
-
-    def search_embbeding(self, embedding: np.ndarray, threshold=0.5):
-
-        euclidean_distance = np.linalg.norm(self.df_values.values - embedding, axis=1)
-        min_pos = np.argmin(euclidean_distance)
-        min_distance = euclidean_distance[min_pos]
-
-        if min_distance > threshold:
-            return {
-                "id_client": "not identified",
-                "similarity": min_distance, 
-                "info": self.info_client}
-        
-        id_client = str(self.consumers.values[min_pos][0])
-
-        if id_client in self.consumers.values:
-            record = self.df_infoclients[self.df_infoclients["consumer"]==id_client]
-            _, type_client, recomendation, last_visit, discount = record.values[0].tolist()
-            info_client_result = {
-            "type_client": type_client,
-            "recomendation": recomendation,
-            "last_visit": last_visit,
-            "discount": discount
-        }
-
-        return {"id_client": id_client, "similarity": min_distance, "info": info_client_result}
+from config.config import DATA_DIR, RESULTS_DIR, ASSETS_DIR
 
 
 class CRMProcesor:
@@ -201,13 +96,13 @@ class NotificationManager:
     def __init__(self):
         self.showing_ids = []
 
-        self.home_notification = cv2.imread(str(Path(DATA_DIR, "assets", "home.png")))
-        self.waiting_notification = cv2.imread(str(Path(DATA_DIR, "assets", "waiting.png")))
-        self.front_notification = cv2.imread(str(Path(DATA_DIR, "assets", "notification.png")))
+        self.home_notification = cv2.imread(str(Path(ASSETS_DIR, "home.png")))
+        self.waiting_notification = cv2.imread(str(Path(ASSETS_DIR, "waiting.png")))
+        self.front_notification = cv2.imread(str(Path(ASSETS_DIR, "notification.png")))
         self.front_notification_register = cv2.imread(
-            str(Path(DATA_DIR, "assets", "register.jpg")))
+            str(Path(ASSETS_DIR, "register.jpg")))
         self.front_notification_rcreated = cv2.imread(
-            str(Path(DATA_DIR, "assets", "created.jpg")))
+            str(Path(ASSETS_DIR, "created.jpg")))
 
         self.notifications_states = {
             "home": self.home_notification,
@@ -323,3 +218,109 @@ class NotificationManager:
         self.notifications_states["notification"] = img_notification
         
         return img_notification
+
+
+class VisionCRM:
+    def __init__(
+        self, 
+        bbdd: str="crm_vision", 
+        id_col="object_id",
+        sequential_model = SequentialRecognition()
+        ) -> None:
+
+        # Load data (deserialize)
+        with open(DATA_DIR / f"{bbdd}_auto.pickle", 'rb') as handle:
+            unserialized_df = pickle.load(handle)
+        self.df_embedding = pd.DataFrame(unserialized_df)
+
+        with open(DATA_DIR / f"{bbdd}_info_client.pickle", 'rb') as handle:
+            unserialized_df = pickle.load(handle)
+        self.df_infoclients = pd.DataFrame(unserialized_df)
+
+        self.consumers = self.df_embedding[id_col]
+        self.sequential_model = sequential_model
+
+        self.crm_vision_matrix = [embbeding for embbeding  in self.df_embedding["embedding"].values]
+
+        self.info_client = {
+            "type_client": "",
+            "recomendation": "",
+            "last_visit": "",
+            "discount": ""
+        }
+
+    def calculate_cosine_similarity(self, matrix_input, matrix_crm):
+        return cosine_similarity(
+            matrix_input,
+            matrix_crm
+        )
+
+    def _predict(self, crm_vision_matrix, matrix_input):
+    
+        #calculate distance
+        matrix_similarity = self.calculate_cosine_similarity(
+            matrix_input,
+            crm_vision_matrix
+        )
+        
+        score = matrix_similarity.max(axis=1)
+        arg_max = matrix_similarity.argmax(axis=1)
+        
+        # get object_id
+        predictions = []
+        for max_value in arg_max:
+            predictions.append(self.consumers.values[max_value])
+        
+        return predictions, score
+
+
+    def predict(self, df, distance_treshold=0.8):
+
+        if len(df) == 0:
+            return df
+
+        # transform embeddings
+        df_predict = self.sequential_model.predict(df)
+
+        matrix_input = [embbeding for embbeding  in df_predict["embedding"].values]
+        
+        # calculate distance
+        predictions, score = self._predict(self.crm_vision_matrix, matrix_input)
+        
+        df_predict["raw_prediction_object_id"] = predictions
+        df_predict["score"] = score
+
+        # compare with threshold
+        df_predict["prediction_object_id_"] = [
+            raw_prediction if score>distance_treshold else "no identified" for raw_prediction, score in df_predict[["raw_prediction_object_id", "score"]].values
+        ]
+
+        return df_predict
+
+
+    def search_embbeding(self, embedding: np.ndarray, threshold=0.5):
+
+        euclidean_distance = np.linalg.norm(self.df_values.values - embedding, axis=1)
+        min_pos = np.argmin(euclidean_distance)
+        min_distance = euclidean_distance[min_pos]
+
+        if min_distance > threshold:
+            return {
+                "id_client": "not identified",
+                "similarity": min_distance, 
+                "info": self.info_client}
+        
+        id_client = str(self.consumers.values[min_pos][0])
+
+        if id_client in self.consumers.values:
+            record = self.df_infoclients[self.df_infoclients["consumer"]==id_client]
+            _, type_client, recomendation, last_visit, discount = record.values[0].tolist()
+            info_client_result = {
+            "type_client": type_client,
+            "recomendation": recomendation,
+            "last_visit": last_visit,
+            "discount": discount
+        }
+
+        return {"id_client": id_client, "similarity": min_distance, "info": info_client_result}
+

@@ -129,6 +129,6 @@ dmypy.json
 .pyre/
 
 #data
-data/
+data_research/
 results/
 store/

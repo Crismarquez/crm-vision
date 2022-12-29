@@ -19,12 +19,12 @@ if not CRM_DIR.exists():
 if __name__ == "__main__":
     print("\n")
     print("*"*30)
-    print("Bienvenido al registro de crm-vision  \n")
+    print("Welcome to CRM-Vision register  \n")
     print("*"*30)
     print("\n")
-    print("Configuraciones:  \n")
+    print("Setup:  \n")
 
-    source = input("Habilitar el puerto número: ")
+    source = input("Source camera number: ")
     source = int(source)
 
     sequential = SequentialRecognition("mean")
