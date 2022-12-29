@@ -8,7 +8,7 @@ python >= 3.7
 
 ## Clone repo
 <pre>
-git clone https://github.com/.git
+git clone https://github.com/Crismarquez/crm-vision.git
 cd crm-vision
 </pre> 
 
