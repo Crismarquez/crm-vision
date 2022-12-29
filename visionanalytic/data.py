@@ -22,9 +22,9 @@ class CRMProcesor:
         # Load data (deserialize)
         self.load_crm()
 
-        with open(DATA_DIR / f"{bbdd}_info_client.pickle", 'rb') as handle:
-            unserialized_df = pickle.load(handle)
-        self.df_infoclients = pd.DataFrame(unserialized_df)
+        # with open(DATA_DIR / f"{bbdd}_info_client.pickle", 'rb') as handle:
+        #     unserialized_df = pickle.load(handle)
+        self.df_infoclients = pd.DataFrame()
 
         self.id_col = id_col
         self.consumers = self.df_embedding[id_col]
@@ -39,7 +39,7 @@ class CRMProcesor:
         }
     
     def load_crm(self) -> None:
-        crm_data = np.load(RESULTS_DIR / "crm_vision.npy", allow_pickle=True)
+        crm_data = np.load(DATA_DIR / "crm_vision.npy", allow_pickle=True)
         self.df_embedding = pd.DataFrame.from_records(crm_data)
         self.crm_vision_matrix = [embbeding for embbeding  in self.df_embedding["embedding"].values]
 

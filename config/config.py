@@ -20,6 +20,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 IMGCROP_DIR.mkdir(parents=True, exist_ok=True)
 RAWDATA_DIR.mkdir(parents=True, exist_ok=True)
+(MODELS_DIR / "strong_sort").mkdir(parents=True, exist_ok=True)
 
 MODELS = [
   "VGG-Face", 

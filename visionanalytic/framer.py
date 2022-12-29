@@ -363,7 +363,7 @@ class FramerCRM:
 
                         if len(df_to_predict)>0:
                             # search in ddbb
-                            df_predict = self.crm_ddbb.predict(df_to_predict, 0.9)
+                            df_predict = self.crm_ddbb.predict(df_to_predict, 0.8)
                             # print(df_predict)
                             df_clients_identified = df_predict[
                                 df_predict["prediction_object_id_"] != "no identified"
