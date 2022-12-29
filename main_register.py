@@ -34,7 +34,7 @@ if __name__ == "__main__":
         recognition=FaceRecognition(det_size=(320, 320)),
         sequential_model=sequential,
         frame_skipping=5,
-        write=False
+        write=True
     )
 
     new_user = input("Enter new user (y/n): ")

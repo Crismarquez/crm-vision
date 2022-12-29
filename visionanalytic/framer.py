@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List, Dict
 import datetime
 
-import cv2
+import cv2  
 import numpy as np
 from imutils.video import FPS
 import torch
@@ -294,7 +294,7 @@ class Register:
         self.df_stream = pd.DataFrame()
         time_register = time.strftime("%d-%m-%Y-%H-%M-%S", time.localtime())
 
-        self.n_embeddings = 30
+        self.n_embeddings = 15
 
         self.notification_manager = NotificationManager()
         self.notifications_states = self.notification_manager.notifications_states
@@ -383,6 +383,7 @@ class Register:
             # start to show register
             if total_frames > 30*5:
                 state_notification = "register"
+                front_image = self.notifications_states[state_notification]
                 # skip frames - predict 
                 if total_frames % self.frame_skipping == 0:
 
@@ -433,7 +434,7 @@ class Register:
             cv2.imshow("front-app", front_image)
 
             if self.write:
-                self.writer.write(self.front_image)
+                self.writer.write(front_image)
 
             if state_notification != "created":
                 total_frames += 1
@@ -691,7 +692,7 @@ class FramerCRM:
         recognition: FaceRecognition,
         tracker: Tracker,
         crm_ddbb: CRMProcesor,
-        frame_skipping=10,
+        frame_skipping=2,
         write: bool = True
     ) -> None:
 
@@ -706,7 +707,7 @@ class FramerCRM:
         self.df_stream = pd.DataFrame()
         time_register = time.strftime("%d-%m-%Y-%H-%M-%S", time.localtime())
 
-        self.n_embeddings = 30
+        self.n_embeddings = 10
 
         self.notification_manager = NotificationManager()
         self.front_image = np.zeros((840, 640*2, 3)).astype(np.uint8)
@@ -732,7 +733,7 @@ class FramerCRM:
             self.writer_params = {
                     "output_file": output_file,
                     "fourcc": cv2.VideoWriter_fourcc(*'MP4V'),
-                    "fps": int(self.reader.get(cv2.CAP_PROP_FPS)),
+                    "fps": 15, # int(self.reader.get(cv2.CAP_PROP_FPS))
                     "frameSize": (640*2, 840)
                 }
 
@@ -866,6 +867,7 @@ class FramerCRM:
                             # show notifications
                             for stream_id_object, predict_id_object in df_costumers_in_store[["object_id", "prediction_object_id_"]].values:
                                 face_crop = self.df_stream[self.df_stream["object_id"]==stream_id_object]["img_crop"].sample(1).values[0]
+                                face_crop = cv2.cvtColor(face_crop, cv2.COLOR_RGB2BGR)
                                 self.front_notification = self.notification_manager.generate_notification(
                                     face_crop,
                                     self.crm_ddbb.df_embedding[self.crm_ddbb.df_embedding[self.crm_ddbb.id_col]==predict_id_object],
@@ -880,6 +882,7 @@ class FramerCRM:
                         
                                 for stream_id_object in df_clients_not_identified["object_id"].values:
                                     face_crop = self.df_stream[self.df_stream["object_id"]==stream_id_object]["img_crop"].sample(1).values[0]
+                                    face_crop = cv2.cvtColor(face_crop, cv2.COLOR_RGB2BGR)
                                     self.front_notification = self.notification_manager.generate_notification(
                                         face_crop,
                                         df_clients_not_identified[df_clients_not_identified["object_id"]==stream_id_object],
@@ -889,7 +892,12 @@ class FramerCRM:
                             # # clean stream
                             self.df_stream = self.df_stream.drop(
                                 self.df_stream[self.df_stream["object_id"].isin(
-                                    list(df_clients_identified["prediction_object_id_"]))].index
+                                    list(df_clients_identified["object_id"]))].index
+                                )
+
+                            self.df_stream = self.df_stream.drop(
+                                self.df_stream[self.df_stream["object_id"].isin(
+                                    list(df_clients_not_identified["object_id"]))].index
                                 )
 
             # tracking without detections
@@ -933,6 +941,10 @@ class FramerCRM:
                 break
 
             total_frames += 1
+
+            # reset df_stream
+            if len(self.df_stream) > 1000:
+                self.df_stream = self.df_stream.tail(100)
 
         self.reader.release()
         if self.write:

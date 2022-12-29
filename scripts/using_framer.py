@@ -20,7 +20,7 @@ framer = FramerCRM(
     tracker=tracker,
     crm_ddbb=CRMProcesor(id_col="id"),
     frame_skipping=2,
-    write=False
+    write=True
 )
 
 framer.capture()
