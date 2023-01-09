@@ -948,3 +948,4 @@ class FeatureExtractorResearch:
         self.reader.release()
 
         cv2.destroyAllWindows()
+

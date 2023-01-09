@@ -10,6 +10,7 @@ MODELS_DIR = Path(STORE_DIR, "models")
 RESULTS_DIR = Path(BASE_DIR, "results")
 IMGCROP_DIR = Path(RESULTS_DIR, "img_crop")
 RAWDATA_DIR = Path(RESULTS_DIR, "raw_data")
+DATARESEARCH_DIR = Path(BASE_DIR, "data_research")
 
 # Add to path
 sys.path.append(str(BASE_DIR))

@@ -103,3 +103,11 @@ def crop_img(frame, xyxy):
     croped = frame[xyxy[1]:xyxy[3], xyxy[0]:xyxy[2]]
     return croped
 
+def get_angle(a: np.array, b: np.array, c: np.array) -> float:
+    ba = a - b
+    bc = c - b
+
+    cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
+    angle = np.arccos(cosine_angle)
+
+    return np.degrees(angle)
