@@ -111,3 +111,13 @@ def get_angle(a: np.array, b: np.array, c: np.array) -> float:
     angle = np.arccos(cosine_angle)
 
     return np.degrees(angle)
+
+def find_detection(center_object:list, detections:List):
+    x = center_object[0]
+    y = center_object[1]
+
+    for detection in detections:
+        bbox = detection["bbox"]
+        if (bbox[0]<x) & (bbox[2]>x) & (bbox[1]<y) & (bbox[3]>y):
+            return detection
+

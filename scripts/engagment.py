@@ -6,13 +6,13 @@ import insightface
 from insightface.app import FaceAnalysis
 from insightface.data import get_image as ins_get_image
 
-from visionanalytic.utils import get_angle, xyxy_to_xywh
+from visionanalytic.utils import get_angle, xyxy_to_xywh, find_detection
 from visionanalytic.tracking import TrackableObject, Tracker
 from config.config import DATARESEARCH_DIR
 
 def engagement_detect(left_angle, right_angle) -> bool:
-    min_angle = 80
-    max_angle = 110
+    min_angle = 70
+    max_angle = 115
 
     if ((left_angle > min_angle) & (right_angle > min_angle) 
     & (left_angle < max_angle) & (right_angle < max_angle)):
@@ -26,9 +26,9 @@ app = FaceAnalysis(
 app.prepare(ctx_id=0, det_size=(320, 320))
 
 device = 0
-video_path = DATARESEARCH_DIR / "2023-01-05-231506.webm"
-# cap = cv2.VideoCapture(str(video_path))
-cap = cv2.VideoCapture(0)
+video_path = DATARESEARCH_DIR / "some_people.mp4"
+cap = cv2.VideoCapture(str(video_path))
+#cap = cv2.VideoCapture(0)
 
 skip_frame = 20
 total_frame = 0
@@ -99,7 +99,6 @@ while True:
 
         # be sure n object detected is iqual to m object tracked
         if len(objects) == len(faces):
-
             # loop for each object tracked and add info
             for (n_object, object_item) in enumerate(objects.items()):
                 objectID, centroid = object_item
@@ -120,7 +119,8 @@ while True:
                 # cv2.circle(frame, (centroid[0], centroid[1]), 4, (255,0,0), -1)
 
                 #faces[n_object]["object_id"] = objectID
-                face = faces[n_object]
+                # get correct face detected
+                face = find_detection(centroid, faces)
                 left_angle = get_angle(
                     face["kps"][0],
                     face["kps"][2],
